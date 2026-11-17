@@ -38,17 +38,18 @@ function renderRangeChart(){
  $('#trendExplanation').textContent=trendMetrics[metric].label+' ('+trendMetrics[metric].unit+') | '+({day:'Harian',week:'Mingguan',month:'Bulanan'}[result.mode])+' | '+(cumulative?'Akumulasi sejak '+trendFormatDate(activeRange.start):'Nilai setiap kelompok tanggal')+'. Klik batang/titik untuk detail.';
  const pageSize=45,pages=Math.max(1,Math.ceil(trendCurrent.length/pageSize));trendPage=Math.min(trendPage,pages-1);const start=trendPage*pageSize,visible=trendCurrent.slice(start,start+pageSize);
  const values=visible.map(b=>cumulative?b.cumulative[metric]:b[metric]),scale=trendScale(Math.max(metric==='qty'?4:0,...trendCurrent.map(b=>cumulative?b.cumulative[metric]:b[metric])));
- const width=Math.max(860,visible.length*25+115),height=350,left=90,right=25,top=25,bottom=68,plotH=height-top-bottom,plotW=width-left-right,slot=plotW/visible.length;
+ const labelWidth=Math.max(42,...values.filter(v=>v>0).map(v=>(metric==='qty'?num(v):new Intl.NumberFormat('id-ID',{notation:'compact',maximumFractionDigits:1}).format(v)).length*7+16));
+ const width=Math.max(860,visible.length*labelWidth+115),height=350,left=90,right=25,top=25,bottom=68,plotH=height-top-bottom,plotW=width-left-right,slot=plotW/visible.length;
  const y=value=>top+plotH*(1-value/scale.top),x=i=>left+slot*(i+.5),color=trendMetrics[metric].color;
  const short=n=>new Intl.NumberFormat('id-ID',{notation:'compact',maximumFractionDigits:1}).format(n);
- let svg='<svg class="trend-svg" viewBox="0 0 '+width+' '+height+'" xmlns="http://www.w3.org/2000/svg" role="group" aria-label="Grafik '+esc(trendMetrics[metric].label)+'">';
+ let svg='<svg class="trend-svg" style="min-width:'+width+'px" viewBox="0 0 '+width+' '+height+'" xmlns="http://www.w3.org/2000/svg" role="group" aria-label="Grafik '+esc(trendMetrics[metric].label)+'">';
  for(let value=0;value<=scale.top+scale.step/100;value+=scale.step){const yy=y(value);svg+='<line x1="'+left+'" y1="'+yy+'" x2="'+(width-right)+'" y2="'+yy+'" stroke="#e4ebe6"/><text x="'+(left-12)+'" y="'+(yy+4)+'" text-anchor="end" fill="#65776e" font-size="11">'+esc(short(value))+'</text>'}
  svg+='<text x="'+left+'" y="12" fill="#65776e" font-size="10">'+esc(trendMetrics[metric].unit)+'</text>';
  if(shape==='line')svg+='<polyline points="'+values.map((v,i)=>x(i)+','+y(v)).join(' ')+'" fill="none" stroke="'+color+'" stroke-width="2.5"/>';
  visible.forEach((b,i)=>{const v=values[i],xx=x(i),yy=y(v),label=trendLabel(b)+': '+trendValue(v,metric),selected=trendSelection===b.key;
  svg+='<g class="trend-point '+(selected?'trend-selected':'')+'" tabindex="0" role="button" aria-label="'+esc(label)+'; buka detail" data-trend-index="'+(start+i)+'"><title>'+esc(label)+'</title><rect class="trend-hit" x="'+(left+i*slot)+'" y="'+top+'" width="'+slot+'" height="'+plotH+'"/>';
  svg+=shape==='bar'?'<rect x="'+(xx-Math.min(32,slot*.6)/2)+'" y="'+yy+'" width="'+Math.min(32,slot*.6)+'" height="'+Math.max(v>0?1:0,top+plotH-yy)+'" rx="3" fill="'+color+'"/>':'<circle cx="'+xx+'" cy="'+yy+'" r="4" fill="'+color+'" stroke="white" stroke-width="1.5"/>';
- if(visible.length<=20&&v>0)svg+='<text x="'+xx+'" y="'+Math.max(17,yy-8)+'" text-anchor="middle" font-size="10" fill="'+color+'">'+esc(short(v))+'</text>';
+ if(v>0)svg+='<text x="'+xx+'" y="'+Math.max(17,yy-8)+'" text-anchor="middle" font-size="10" fill="'+color+'">'+esc(metric==='qty'?num(v):short(v))+'</text>';
  if(i%Math.max(1,Math.ceil(visible.length/12))===0||i===visible.length-1){const labelDate=result.mode==='month'?b.start.slice(0,7):b.start.slice(8)+'/'+b.start.slice(5,7);svg+='<text x="'+xx+'" y="'+(height-bottom+23)+'" text-anchor="middle" font-size="10" fill="#65776e">'+esc(labelDate)+'</text>'}
  svg+='</g>'});svg+='</svg>';$('#chart').innerHTML=svg;
  $('#trendPrev').disabled=trendPage===0;$('#trendNext').disabled=trendPage===pages-1;$('#trendPageLabel').textContent='Kelompok '+(start+1)+'-'+(start+visible.length)+' dari '+trendCurrent.length+' | '+(trendPage+1)+'/'+pages;
