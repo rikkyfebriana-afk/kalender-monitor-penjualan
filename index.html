@@ -81,4 +81,4 @@ $('#refreshTeam').onclick=async()=>{if(saving||$('#modal').open)return;try{await
 $('#logout').onclick=async()=>{if(saving)return;const {error}=await client.auth.signOut();if(error){toast('Gagal keluar. Coba kembali.');return}await showSession(null);$('#authMessage').textContent='Anda telah keluar.'};
 client.auth.onAuthStateChange((event)=>{if(event==='SIGNED_OUT'){currentUser=null;document.body.classList.remove('signed-in');$('#auth').hidden=false;state={demo:false,sales:[],orders:[]};render();}});
 client.auth.getSession().then(({data})=>showSession(data.session));
-</script><script src="/enhancements.js"></script><script src="/accounts.js"></script></body></html>
+</script><script src="/enhancements.js"></script><script src="/trends.js"></script><script src="/accounts.js"></script></body></html>

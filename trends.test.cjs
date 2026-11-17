@@ -1,0 +1,20 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const src=fs.readFileSync('trends.js','utf8'),enh=fs.readFileSync('enhancements.js','utf8'),html=fs.readFileSync('index.html','utf8');
+const core=html.slice(html.indexOf('function monthEnd'),html.indexOf('function toast'));
+const finance=enh.slice(enh.indexOf('function paidAmount'),enh.indexOf('const baseRender'));
+const context=vm.createContext({Intl});vm.runInContext(core+finance+src.slice(0,src.indexOf('const trendMetrics')),context);
+const rows=[{date:'2026-11-01',qty:10,price:100,status:'Selesai',paymentStatus:'Lunas'},{date:'2026-11-02',qty:20,price:100,status:'Proses',paymentStatus:'DP / Sebagian',amountPaid:500},{date:'2026-11-02',qty:100,price:100,status:'Dibatalkan'},{date:'2026-10-31',qty:900,price:100,status:'Selesai'}];
+const range={start:'2026-11-01',end:'2026-11-03'};
+let b=context.trendBuckets(rows,range,'day').buckets;assert.equal(b.length,3);assert.equal(b[0].qty,10);assert.equal(b[1].qty,20);assert.equal(b[1].cancelled,1);assert.equal(b[1].paid,500);assert.equal(b[1].unpaid,1500);assert.equal(b[2].qty,0);assert.equal(b[2].cumulative.qty,30);assert.equal(b[2].cumulative.revenue,3000);assert.equal(b[2].cumulative.paid,1500);
+let w=context.trendBuckets(rows,range,'week').buckets;assert.equal(w.length,2);assert.equal(w[0].start,'2026-11-01');assert.equal(w[0].end,'2026-11-01');assert.equal(w[1].start,'2026-11-02');assert.equal(w[1].end,'2026-11-03');assert.equal(w[1].qty,20);
+let m=context.trendBuckets(rows,{start:'2026-10-31',end:'2026-11-02'},'month').buckets;assert.equal(m.length,2);assert.equal(m[0].qty,900);assert.equal(m[1].qty,30);
+const p=context.trendPrevious(range);assert.equal(p.start,'2026-10-29');assert.equal(p.end,'2026-10-31');assert.equal(context.trendDelta(0,0),'Tidak berubah');assert.equal(context.trendDelta(10,0),'Belum ada pembanding');assert.equal(context.trendDelta(20,10),'+100%');
+assert(context.trendScale(0).top>0);assert(context.trendScale(630).top>=630);assert.equal(context.trendBuckets([],{start:'2024-02-28',end:'2024-03-01'},'day').buckets.length,3);
+const large=context.trendBuckets([],{start:'2026-01-01',end:'2026-12-31'},'day');assert.equal(large.buckets.length,365);assert.equal(large.buckets.at(-1).start,'2026-12-31');assert.equal(context.trendBuckets([],range,'auto').mode,'day');
+const nodes=new Map();function node(key){if(!nodes.has(key))nodes.set(key,{value:({trendMetric:'qty',trendGroup:'auto',trendMode:'period',trendShape:'bar',salesFilter:''})[key]||'',innerHTML:'',textContent:'',insertAdjacentHTML(){},querySelector(s){return node(key+s)},remove(){},addEventListener(){},classList:{toggle(){}}});return nodes.get(key)}
+const demo=rows.slice(0,3).map(o=>({...o,salesId:'a',customer:'<img onerror=bad>',type:'Custom',address:'A & B'}));
+const ui=vm.createContext({Intl,document:{head:node('head')},$:s=>node(s.startsWith('#')?s.slice(1):s),$$:()=>[],state:{orders:demo,sales:[{id:'a',name:'Sales A'}]},activeRange:range,allOrders:()=>demo,rangeLabel:()=>range.start+' s.d. '+range.end,salesName:()=> 'Sales A',num:String,rupiah:n=>'Rp '+n,esc:s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')});
+vm.runInContext(core+finance+src,ui);assert(node('chart').innerHTML.includes('<svg'));assert(node('trendSummary').innerHTML.includes('30 eks.'));assert(node('trendTable').innerHTML.includes('Rp 1500'));
+vm.runInContext('trendSelection=trendCurrent[0].key;renderTrendDetail()',ui);assert(node('trendDetail').innerHTML.includes('&lt;img onerror=bad&gt;'));assert(!node('trendDetail').innerHTML.includes('<img onerror'));
+node('trendMetric').value='paid';node('trendShape').value='line';node('trendMode').value='cumulative';vm.runInContext('renderRangeChart()',ui);assert(node('chart').innerHTML.includes('<polyline'));assert(node('trendExplanation').textContent.includes('Akumulasi'));
+console.log('PASS: bucket dates, partial weeks/months, cancelled orders, payments, cumulative values, prior comparison, leap day, 365-day detail, chart rendering, metric/shape switching and escaped customer detail.');
