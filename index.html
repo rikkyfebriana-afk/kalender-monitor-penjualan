@@ -22,12 +22,15 @@ function rangeLabel(){return activeRange.start+' s.d. '+activeRange.end}
 function ordersInRange(orders,r,salesId=''){return orders.filter(o=>o.date>=r.start&&o.date<=r.end&&(!salesId||o.salesId===salesId))}
 
 function toast(t){$('#toast').textContent=t;$('#toast').style.display='block';clearTimeout(window.toastTimer);window.toastTimer=setTimeout(()=>$('#toast').style.display='none',3000)}
-let currentUser=null, revision=0, saving=false, canEdit=false;
+let currentUser=null, revision=0, saving=false, canEdit=false, isOwner=false;
 const client=supabase.createClient('https://qfzzeydwetcsgeanudsw.supabase.co','sb_publishable_1I5a_2Y-ulRa7cskinfxYQ_RcHWC72r');
 async function loadData(){
  const {data,error}=await client.from('calendar_team').select('payload,revision,owner_id').eq('id',1).single();
  if(error)throw error;
- canEdit=data.owner_id===currentUser.id;document.body.classList.toggle('team-viewer',!canEdit);document.dispatchEvent(new Event('calendar-access'));
+ isOwner=data.owner_id===currentUser.id;
+ const access=await client.from('calendar_admins').select('user_id').eq('user_id',currentUser.id).maybeSingle();
+ if(access.error)throw access.error;
+ canEdit=isOwner||!!access.data;document.body.classList.toggle('team-viewer',!canEdit);document.dispatchEvent(new Event('calendar-access'));
  state=data?data.payload:{demo:false,sales:[],orders:[]};revision=data?.revision||0;render();
 }
 async function save(){
@@ -66,7 +69,7 @@ $('#importFile').onchange=async e=>{if(!canEdit)return;try{const file=e.target.f
 
 async function showSession(session){
  document.body.classList.remove('signed-in');$('#auth').hidden=false;
- canEdit=false;document.dispatchEvent(new Event('calendar-access'));currentUser=session?.user||null;state={demo:false,sales:[],orders:[]};revision=0;render();
+ canEdit=false;isOwner=false;document.dispatchEvent(new Event('calendar-access'));currentUser=session?.user||null;state={demo:false,sales:[],orders:[]};revision=0;render();
  if(!currentUser)return;
  try{await loadData();$('#accountEmail').textContent=currentUser.email+(canEdit?' · Admin':' · Lihat tim');document.body.classList.add('signed-in');$('#auth').hidden=true;$('#loginPassword').value=''}
  catch{ $('#authMessage').textContent='Data belum dapat dimuat. Periksa koneksi dan coba masuk kembali.'; }
